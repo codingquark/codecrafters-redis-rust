@@ -1,13 +1,17 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::thread;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
 
     for stream in listener.incoming() {
+        // Support multiple connections
         match stream {
             // If the stream is OK, respond to PINGs with PONG
-            Ok(stream) => handle_connection(stream),
+            Ok(stream) => {
+                thread::spawn(|| handle_connection(stream));
+            }
             Err(e) => {
                 println!("error: {}", e);
             }
