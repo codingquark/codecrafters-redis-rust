@@ -1,36 +1,39 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::thread;
+use threadpool::ThreadPool;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
+    
+    // Create a thread pool with a reasonable number of threads
+    let pool = ThreadPool::new(4);
 
     for stream in listener.incoming() {
-        // Support multiple connections
         match stream {
-            // If the stream is OK, respond to PINGs with PONG
             Ok(stream) => {
-                thread::spawn(|| handle_connection(stream));
+                pool.execute(|| {
+                    if let Err(e) = handle_connection(stream) {
+                        eprintln!("Connection error: {}", e);
+                    }
+                });
             }
             Err(e) => {
-                println!("error: {}", e);
+                eprintln!("Accept error: {}", e);
             }
         }
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn handle_connection(mut stream: TcpStream) -> std::io::Result<()> {
     let mut buffer = [0; 1024];
 
     loop {
-        let bytes_read = stream
-            .read(&mut buffer)
-            .expect("Failed to read from stream");
+        let bytes_read = stream.read(&mut buffer)?;
 
         if bytes_read == 0 {
-            break;
+            return Ok(());
         }
 
-        stream.write(b"+PONG\r\n").expect("Failed to write to stream");
+        stream.write(b"+PONG\r\n")?;
     }
 }
