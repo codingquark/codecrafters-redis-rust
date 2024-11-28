@@ -1,19 +1,32 @@
-#![allow(unused_imports)]
-use std::net::TcpListener;
-use std::io::Write;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    
+
     for stream in listener.incoming() {
         match stream {
-            Ok(mut stream) => {
-                let response = "+PONG\r\n";
-                stream.write_all(response.as_bytes()).unwrap();
-            }
+            // If the stream is OK, respond to PINGs with PONG
+            Ok(stream) => handle_connection(stream),
             Err(e) => {
                 println!("error: {}", e);
             }
         }
+    }
+}
+
+fn handle_connection(mut stream: TcpStream) {
+    let mut buffer = [0; 1024];
+
+    loop {
+        let bytes_read = stream
+            .read(&mut buffer)
+            .expect("Failed to read from stream");
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        stream.write(b"+PONG\r\n").expect("Failed to write to stream");
     }
 }
