@@ -24,3 +24,5 @@ bytes = "1.3.0"                                     # helps manage buffers
 thiserror = "1.0.32"                                # error handling
 tokio = { version = "1.23.0", features = ["full"] } # async networking
 threadpool = "1.8"
+config = "0.14.0"                                   # for configuration
+serde = { version = "1.0.216", features = ["derive"] }

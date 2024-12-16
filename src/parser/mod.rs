@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug)]
 pub enum RESPOutput {
     Array(Vec<RESPOutput>),
@@ -24,6 +26,21 @@ pub enum ParserError {
     CRLFNotFound,
     InvalidInput,
 }
+
+// Implement Display for ParserError
+impl fmt::Display for ParserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParserError::IncompleteInput => write!(f, "Incomplete input"),
+            ParserError::UnsupportedCommand => write!(f, "Unsupported command"),
+            ParserError::CRLFNotFound => write!(f, "CRLF not found"),
+            ParserError::InvalidInput => write!(f, "Invalid input"),
+        }
+    }
+}
+
+// Implement Error for ParserError
+impl std::error::Error for ParserError {}
 
 pub type ParserCRLFResult<'a> = Result<(&'a [u8], &'a [u8]), ParserError>;
 
