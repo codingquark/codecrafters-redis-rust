@@ -17,6 +17,7 @@ pub enum RESPOutput {
 pub enum RESPCommand {
     Ping,
     Echo(String),
+    Set(String, String),
 }
 
 #[derive(Debug)]
