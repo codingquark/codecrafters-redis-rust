@@ -1,20 +1,19 @@
 use tokio::net::TcpListener;
 use tokio::signal;
 use std::sync::Arc;
-use tokio::sync::Mutex;
-use crate::{handle_connection, store::Store};
+use crate::{handle_connection, store::redis::Store};
 
 pub struct Server {
     listener: TcpListener,
     address: String,
     port: u16,
-    store: Arc<Mutex<Store>>,
+    store: Arc<Store>,
 }
 
 impl Server {
     pub async fn new(address: &str, port: u16) -> Result<Self, Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(format!("{}:{}", address, port)).await?;
-        let store = Arc::new(Mutex::new(Store::new()));
+        let store = Arc::new(Store::new());
         Ok(Self { 
             listener, 
             address: address.to_string(), 
@@ -31,8 +30,7 @@ impl Server {
                         Ok((socket, _)) => {
                             let store = Arc::clone(&self.store);
                             tokio::spawn(async move {
-                                let mut store = store.lock().await;
-                                if let Err(e) = handle_connection(socket, &mut store).await {
+                                if let Err(e) = handle_connection(socket, &store).await {
                                     eprintln!("Connection error: {}", e);
                                 }
                             });

@@ -4,13 +4,12 @@ use std::fmt;
 pub enum RESPOutput {
     Array(Vec<RESPOutput>),
     BulkString(String),
-    // TODO: Add other types
-    // SimpleString(String),
-    // Error(String),
-    // Integer(i64),
-    // Double(f64),
-    // Boolean(bool),
-    // Null,
+    SimpleString(String),
+    Error(String),
+    Integer(i64),
+    Double(f64),
+    Boolean(bool),
+    Null,
 }
 
 #[derive(Debug)]
@@ -18,6 +17,7 @@ pub enum RESPCommand {
     Ping,
     Echo(String),
     Set(String, String),
+    Get(String),
 }
 
 #[derive(Debug)]
@@ -62,6 +62,11 @@ impl Parser {
         match symbol {
             "*" => Parser::parse_array(payload),
             "$" => Parser::parse_bulk_string(payload),
+            "+" => Parser::parse_simple_string(payload),
+            "-" => Parser::parse_error(payload),
+            ":" => Parser::parse_integer(payload),
+            "," => Parser::parse_double(payload),
+            "#" => Parser::parse_boolean(payload),
             _ => Err(ParserError::UnsupportedCommand),
         }
     }
@@ -129,6 +134,60 @@ impl Parser {
         }
 
         Ok((RESPOutput::BulkString(res), rem))
+    }
+
+    fn parse_simple_string(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+        let parsed = Parser::parse_until_crlf(payload);
+        if parsed.is_err() {
+            return Err(ParserError::CRLFNotFound);
+        }
+        let (result, rem) = parsed.unwrap();
+        Ok((RESPOutput::SimpleString(String::from(String::from_utf8_lossy(result))), rem))
+    }
+
+    fn parse_error(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+        let parsed = Parser::parse_until_crlf(payload);
+        if parsed.is_err() {
+            return Err(ParserError::CRLFNotFound);
+        }
+        let (result, rem) = parsed.unwrap();
+        Ok((RESPOutput::Error(String::from(String::from_utf8_lossy(result))), rem))
+    }
+
+    fn parse_integer(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+        let parsed = Parser::parse_until_crlf(payload);
+        if parsed.is_err() {
+            return Err(ParserError::CRLFNotFound);
+        }
+        let (result, rem) = parsed.unwrap();
+        Ok((RESPOutput::Integer(String::from(String::from_utf8_lossy(result)).parse().unwrap()), rem))
+    }
+
+    fn parse_double(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+        let parsed = Parser::parse_until_crlf(payload);
+        if parsed.is_err() {
+            return Err(ParserError::CRLFNotFound);
+        }
+        let (result, rem) = parsed.unwrap();
+        Ok((RESPOutput::Double(String::from(String::from_utf8_lossy(result)).parse().unwrap()), rem))
+    }
+
+    fn parse_boolean(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+        let parsed = Parser::parse_until_crlf(payload);
+        if parsed.is_err() {
+            return Err(ParserError::CRLFNotFound);
+        }
+        let (result, rem) = parsed.unwrap();
+        Ok((RESPOutput::Boolean(String::from(String::from_utf8_lossy(result)).parse().unwrap()), rem))
+    }
+
+    fn parse_null(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+        let parsed = Parser::parse_until_crlf(payload);
+        if parsed.is_err() {
+            return Err(ParserError::CRLFNotFound);
+        }
+        let (_, rem) = parsed.unwrap();
+        Ok((RESPOutput::Null, rem))
     }
 
     fn parse_until_crlf(input: &[u8]) -> ParserCRLFResult {
