@@ -11,7 +11,7 @@ use parser::RESPOutput;
 use error::{RedisError, Result};
 use store::redis::Store;
 use store::datatype::DataType;
-
+use std::time::Duration;
 use crate::parser::Parser;
 
 pub async fn handle_connection(mut stream: TcpStream, store: &Store) -> Result<()> {
@@ -37,7 +37,7 @@ pub enum Command {
     Ping,
     Echo(String),
     Get(String),
-    Set(String, DataType),
+    Set(String, DataType, Option<Duration>),
 }
 
 impl Command {
@@ -77,6 +77,7 @@ impl Command {
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
+
                     let value = args.get(1)
                         .and_then(|arg| match arg {
                             RESPOutput::BulkString(s) => Some(DataType::String(s.clone())),
@@ -87,7 +88,21 @@ impl Command {
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
-                    Ok(Command::Set(key, value))
+
+                    let expiry = if args.len() > 3 {
+                        match (args.get(2), args.get(3)) {
+                            (Some(RESPOutput::BulkString(opt)), Some(RESPOutput::BulkString(secs)))
+                                if opt.to_uppercase() == "EX" => {
+                                    secs.parse::<u64>()
+                                    .map(|s| Some(Duration::from_secs(s)))
+                                    .map_err(|_| RedisError::InvalidArguments)?
+                                }
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    };
+                    Ok(Command::Set(key, value, expiry))
                 }
                 "GET" => {
                     let key = args.first()
@@ -108,8 +123,11 @@ impl Command {
         Ok(match self {
             Command::Ping => "+PONG\r\n".to_string(),
             Command::Echo(s) => format!("${}\r\n{}\r\n", s.len(), s),
-            Command::Set(key, value) => {
-                store.set(key, value.clone()).await?;
+            Command::Set(key, value, expiry) => {
+                match expiry {
+                    Some(duration) => store.set_ex(key, value.clone(), *duration).await?,
+                    None => store.set(key, value.clone()).await?,
+                }
                 "+OK\r\n".to_string()
             }
             Command::Get(key) => {

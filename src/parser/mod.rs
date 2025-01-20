@@ -1,5 +1,5 @@
 use std::fmt;
-
+use std::time::Duration;
 #[derive(Debug)]
 pub enum RESPOutput {
     Array(Vec<RESPOutput>),
@@ -16,7 +16,7 @@ pub enum RESPOutput {
 pub enum RESPCommand {
     Ping,
     Echo(String),
-    Set(String, String),
+    Set(String, String, Option<Duration>),
     Get(String),
 }
 
