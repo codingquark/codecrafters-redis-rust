@@ -1,28 +1,33 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use crate::error::Result;
+use super::datatype::DataType;
 
 pub struct Store {
-    // TODO: Support multiple datatypes
-    data: Arc<RwLock<HashMap<String, String>>>,
+    data: RwLock<HashMap<String, DataType>>,
 }
 
 impl Store {
     pub fn new() -> Self {
         Self { 
-            data: Arc::new(RwLock::new(HashMap::new()))
+            data: RwLock::new(HashMap::new())
         }
     }
 
-    pub async fn get(&self, key: &str) -> Result<Option<String>> {
+    pub async fn get(&self, key: &str) -> Result<Option<DataType>> {
         let data = self.data.read().await;
         Ok(data.get(key).cloned())
     }
 
-    pub async fn set(&self, key: &str, value: String) -> Result<()> {
+    pub async fn set(&self, key: &str, value: DataType) -> Result<()> {
         let mut data = self.data.write().await;
-        data.insert(key.to_string(), value.to_string());
+        data.insert(key.to_string(), value);
+        Ok(())
+    }
+
+    pub async fn delete(&self, key: &str) -> Result<()> {
+        let mut data = self.data.write().await;
+        data.remove(key);
         Ok(())
     }
 }

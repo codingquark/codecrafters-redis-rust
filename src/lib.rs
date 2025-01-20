@@ -10,6 +10,7 @@ pub mod store;
 use parser::RESPOutput;
 use error::{RedisError, Result};
 use store::redis::Store;
+use store::datatype::DataType;
 
 use crate::parser::Parser;
 
@@ -36,7 +37,7 @@ pub enum Command {
     Ping,
     Echo(String),
     Get(String),
-    Set(String, String),
+    Set(String, DataType),
 }
 
 impl Command {
@@ -44,7 +45,7 @@ impl Command {
         match resp {
             RESPOutput::Array(elements) => Self::parse_command(elements),
             RESPOutput::SimpleString(s) => Ok(Command::Echo(s)),
-            RESPOutput::Error(e) => Err(RedisError::InvalidArguments),
+            RESPOutput::Error(_) => Err(RedisError::InvalidArguments),
             RESPOutput::Integer(i) => Ok(Command::Get(i.to_string())),
             RESPOutput::Double(d) => Ok(Command::Get(d.to_string())),
             RESPOutput::Boolean(b) => Ok(Command::Get(b.to_string())),
@@ -78,7 +79,11 @@ impl Command {
                         .ok_or(RedisError::InvalidArguments)?;
                     let value = args.get(1)
                         .and_then(|arg| match arg {
-                            RESPOutput::BulkString(s) => Some(s.clone()),
+                            RESPOutput::BulkString(s) => Some(DataType::String(s.clone())),
+                            RESPOutput::Integer(i) => Some(DataType::Integer(*i)),
+                            RESPOutput::Double(d) => Some(DataType::Double(*d)),
+                            RESPOutput::Boolean(b) => Some(DataType::Boolean(*b)),
+                            RESPOutput::Null => Some(DataType::Null),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
@@ -109,7 +114,13 @@ impl Command {
             }
             Command::Get(key) => {
                 match store.get(key).await? {
-                    Some(value) => format!("${}\r\n{}\r\n", value.len(), value),
+                    Some(value) => match value {
+                        DataType::String(s) => format!("${}\r\n{}\r\n", s.len(), s),
+                        DataType::Integer(i) => format!(":{}\r\n", i),
+                        DataType::Double(d) => format!(",{}\r\n", d),
+                        DataType::Boolean(b) => format!("#{}\r\n", if b { "t" } else { "f" }),
+                        DataType::Null => "$-1\r\n".to_string(),
+                    },
                     None => "$-1\r\n".to_string(),
                 }
             }

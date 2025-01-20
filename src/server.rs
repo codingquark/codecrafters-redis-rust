@@ -11,12 +11,12 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn new(address: &str, port: u16) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(address: String, port: u16) -> Result<Self, Box<dyn std::error::Error>> {
         let listener = TcpListener::bind(format!("{}:{}", address, port)).await?;
         let store = Arc::new(Store::new());
         Ok(Self { 
             listener, 
-            address: address.to_string(), 
+            address, 
             port,
             store,
         })
