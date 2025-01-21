@@ -89,19 +89,7 @@ impl Command {
                         })
                         .ok_or(RedisError::InvalidArguments)?;
 
-                    let expiry = if args.len() > 3 {
-                        match (args.get(2), args.get(3)) {
-                            (Some(RESPOutput::BulkString(opt)), Some(RESPOutput::BulkString(secs)))
-                                if opt.to_uppercase() == "EX" => {
-                                    secs.parse::<u64>()
-                                    .map(|s| Some(Duration::from_secs(s)))
-                                    .map_err(|_| RedisError::InvalidArguments)?
-                                }
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    };
+                    let expiry = Self::parse_expiry(&args)?;
                     Ok(Command::Set(key, value, expiry))
                 }
                 "GET" => {
@@ -116,6 +104,26 @@ impl Command {
                 _ => Err(RedisError::UnknownCommand),
             },
             _ => Err(RedisError::InvalidArguments),
+        }
+    }
+
+    fn parse_expiry(args: &[RESPOutput]) -> Result<Option<Duration>> {
+        if args.len() <= 3 {
+            return Ok(None);
+        }
+
+        let [opt, duration] = match (args.get(2), args.get(3)) {
+            (Some(RESPOutput::BulkString(opt)), Some(RESPOutput::BulkString(duration))) => [opt, duration],
+            _ => return Err(RedisError::InvalidArguments),
+        };
+
+        let duration_val = duration.parse::<u64>()
+            .map_err(|_| RedisError::InvalidArguments)?;
+
+        match opt.to_uppercase().as_str() {
+            "EX" => Ok(Some(Duration::from_secs(duration_val))),
+            "PX" => Ok(Some(Duration::from_millis(duration_val))),
+            _ => Ok(None),
         }
     }
 
