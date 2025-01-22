@@ -38,6 +38,7 @@ pub enum Command {
     Echo(String),
     Get(String),
     Set(String, DataType, Option<Duration>),
+    Config(String, String, Option<DataType>),
 }
 
 impl Command {
@@ -70,6 +71,15 @@ impl Command {
                         .ok_or(RedisError::InvalidArguments)?;
                     Ok(Command::Echo(arg))
                 }
+                "GET" => {
+                    let key = args.first()
+                        .and_then(|arg| match arg {
+                            RESPOutput::BulkString(s) => Some(s.clone()),
+                            _ => None,
+                        })
+                        .ok_or(RedisError::InvalidArguments)?;
+                    Ok(Command::Get(key))
+                }
                 "SET" => {
                     let key = args.first()
                         .and_then(|arg| match arg {
@@ -92,14 +102,47 @@ impl Command {
                     let expiry = Self::parse_expiry(&args)?;
                     Ok(Command::Set(key, value, expiry))
                 }
-                "GET" => {
-                    let key = args.first()
+                "CONFIG" => {
+                    let subcommand = args.first()
                         .and_then(|arg| match arg {
                             RESPOutput::BulkString(s) => Some(s.clone()),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
-                    Ok(Command::Get(key))
+
+                    match subcommand.to_uppercase().as_str() {
+                        "GET" => {
+                            let key = args.get(1)
+                                .and_then(|arg| match arg {
+                                    RESPOutput::BulkString(s) => Some(s.clone()),
+                                    _ => None,
+                                })
+                                .ok_or(RedisError::InvalidArguments)?;
+                            Ok(Command::Config("GET".to_string(), key, None))
+                        }
+                        "SET" => {
+                            let key = args.get(1)
+                                .and_then(|arg| match arg {
+                                    RESPOutput::BulkString(s) => Some(s.clone()),
+                                    _ => None,
+                                })
+                                .ok_or(RedisError::InvalidArguments)?;
+
+                            let value = args.get(2)
+                                .and_then(|arg| match arg {
+                                    RESPOutput::BulkString(s) => Some(DataType::String(s.clone())),
+                                    RESPOutput::Integer(i) => Some(DataType::Integer(*i)),
+                                    RESPOutput::Double(d) => Some(DataType::Double(*d)),
+                                    RESPOutput::Boolean(b) => Some(DataType::Boolean(*b)),
+                                    RESPOutput::Null => Some(DataType::Null),
+                                    _ => None,
+                                })
+                                .ok_or(RedisError::InvalidArguments)?;
+
+                            Ok(Command::Config("SET".to_string(), key, Some(value)))
+                        }
+                        _ => Err(RedisError::InvalidArguments),
+                    }
                 }
                 _ => Err(RedisError::UnknownCommand),
             },
@@ -128,18 +171,19 @@ impl Command {
     }
 
     pub async fn execute(&self, store: &Store) -> Result<String> {
-        Ok(match self {
-            Command::Ping => "+PONG\r\n".to_string(),
-            Command::Echo(s) => format!("${}\r\n{}\r\n", s.len(), s),
+        match self {
+            Command::Ping => Ok("+PONG\r\n".to_string()),
+            Command::Echo(s) => Ok(format!("${}\r\n{}\r\n", s.len(), s)),
             Command::Set(key, value, expiry) => {
                 match expiry {
                     Some(duration) => store.set_ex(key, value.clone(), *duration).await?,
                     None => store.set(key, value.clone()).await?,
                 }
-                "+OK\r\n".to_string()
+                Ok("+OK\r\n".to_string())
             }
             Command::Get(key) => {
-                match store.get(key).await? {
+                let value = store.get(key).await?;
+                Ok(match value {
                     Some(value) => match value {
                         DataType::String(s) => format!("${}\r\n{}\r\n", s.len(), s),
                         DataType::Integer(i) => format!(":{}\r\n", i),
@@ -148,8 +192,35 @@ impl Command {
                         DataType::Null => "$-1\r\n".to_string(),
                     },
                     None => "$-1\r\n".to_string(),
+                })
+            }
+            Command::Config(cmd, key, value) => {
+                match cmd.to_uppercase().as_str() {
+                    "GET" => {
+                        let value = store.get(key).await?;
+                        Ok(match value {
+                            Some(value) => match value {
+                                DataType::String(s) => format!("${}\r\n{}\r\n", s.len(), s),
+                                DataType::Integer(i) => format!(":{}\r\n", i),
+                                DataType::Double(d) => format!(",{}\r\n", d),
+                                DataType::Boolean(b) => format!("#{}\r\n", if b { "t" } else { "f" }),
+                                DataType::Null => "$-1\r\n".to_string(),
+                            },
+                            None => "$-1\r\n".to_string(),
+                        })
+                    }
+                    "SET" => {
+                        match value {
+                            Some(value) => {
+                                store.set(key, value.clone()).await?;
+                                Ok("+OK\r\n".to_string())
+                            }
+                            None => Err(RedisError::InvalidArguments)
+                        }
+                    }
+                    _ => Err(RedisError::InvalidArguments)
                 }
             }
-        })
+        }
     }
 }

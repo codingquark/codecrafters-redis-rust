@@ -14,23 +14,14 @@ pub struct Store {
 }
 
 impl Store {
-    pub async fn new(dir: String, dbfilename: String) -> Result<Self> {
+    pub async fn new() -> Result<Self> {
         let data = RwLock::new(HashMap::new());
 
         let store = Self { 
             data,
         };
 
-        Self::init_db(&store, dir, dbfilename).await?;
-        
         Ok(store)
-    }
-
-    async fn init_db(&self, dir: String, dbfilename: String) -> Result<()> {
-        // Store dir and dbfilename in RAM
-        self.set("dir", DataType::String(dir)).await?;
-        self.set("dbfilename", DataType::String(dbfilename)).await?;
-        Ok(())
     }
 
     pub async fn get(&self, key: &str) -> Result<Option<DataType>> {
