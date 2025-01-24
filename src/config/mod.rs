@@ -10,8 +10,8 @@ pub struct ServerConfig {
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {
     pub server: ServerConfig,
-    pub dir: Option<String>,
-    pub dbfilename: Option<String>,
+    pub dir: String,
+    pub dbfilename: String,
 }
 
 pub fn load_config() -> Result<AppConfig, config::ConfigError> {
