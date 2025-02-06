@@ -21,16 +21,22 @@ impl Server {
         Ok(server)
     }
 
-    async fn init_db(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // Store config in RAM
+    async fn init_config(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // Initialize config
         self.store.set("dir", DataType::String(self.config.dir.clone())).await?;
         self.store.set("dbfilename", DataType::String(self.config.dbfilename.clone())).await?;
 
         Ok(())
     }
 
+    async fn init_db(&self) -> Result<(), Box<dyn std::error::Error>> {
+        // TODO: Initialize the database
+        Ok(())
+    }
+
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Initialize the database
+        Self::init_config(&self).await?;
         Self::init_db(&self).await?;
 
         loop {
