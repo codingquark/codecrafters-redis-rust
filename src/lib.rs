@@ -66,6 +66,11 @@ impl Command {
                     let arg = args.first()
                         .and_then(|arg| match arg {
                             RESPOutput::BulkString(s) => Some(s.clone()),
+                            RESPOutput::SimpleString(s) => Some(s.clone()),
+                            RESPOutput::Integer(i) => Some(i.to_string()),
+                            RESPOutput::Double(d) => Some(d.to_string()),
+                            RESPOutput::Boolean(b) => Some(b.to_string()),
+                            RESPOutput::Null => Some("nil".to_string()),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
@@ -75,6 +80,11 @@ impl Command {
                     let key = args.first()
                         .and_then(|arg| match arg {
                             RESPOutput::BulkString(s) => Some(s.clone()),
+                            RESPOutput::SimpleString(s) => Some(s.clone()),
+                            RESPOutput::Integer(i) => Some(i.to_string()),
+                            RESPOutput::Double(d) => Some(d.to_string()),
+                            RESPOutput::Boolean(b) => Some(b.to_string()),
+                            RESPOutput::Null => Some("nil".to_string()),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
@@ -84,17 +94,23 @@ impl Command {
                     let key = args.first()
                         .and_then(|arg| match arg {
                             RESPOutput::BulkString(s) => Some(s.clone()),
+                            RESPOutput::SimpleString(s) => Some(s.clone()),
+                            RESPOutput::Integer(i) => Some(i.to_string()),
+                            RESPOutput::Double(d) => Some(d.to_string()),
+                            RESPOutput::Boolean(b) => Some(b.to_string()),
+                            RESPOutput::Null => Some("nil".to_string()),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
 
                     let value = args.get(1)
                         .and_then(|arg| match arg {
-                            RESPOutput::BulkString(s) => Some(DataType::String(s.clone())),
-                            RESPOutput::Integer(i) => Some(DataType::Integer(*i)),
-                            RESPOutput::Double(d) => Some(DataType::Double(*d)),
-                            RESPOutput::Boolean(b) => Some(DataType::Boolean(*b)),
-                            RESPOutput::Null => Some(DataType::Null),
+                            RESPOutput::BulkString(s) => Some(DataType::from(s.clone())),
+                            RESPOutput::SimpleString(s) => Some(DataType::from(s.clone())),
+                            RESPOutput::Integer(i) => Some(DataType::from(*i)),
+                            RESPOutput::Double(d) => Some(DataType::from(*d)),
+                            RESPOutput::Boolean(b) => Some(DataType::from(*b)),
+                            RESPOutput::Null => Some(DataType::from("nil")),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
@@ -106,6 +122,11 @@ impl Command {
                     let subcommand = args.first()
                         .and_then(|arg| match arg {
                             RESPOutput::BulkString(s) => Some(s.clone()),
+                            RESPOutput::SimpleString(s) => Some(s.clone()),
+                            RESPOutput::Integer(i) => Some(i.to_string()),
+                            RESPOutput::Double(d) => Some(d.to_string()),
+                            RESPOutput::Boolean(b) => Some(b.to_string()),
+                            RESPOutput::Null => Some("nil".to_string()),
                             _ => None,
                         })
                         .ok_or(RedisError::InvalidArguments)?;
@@ -115,6 +136,11 @@ impl Command {
                             let key = args.get(1)
                                 .and_then(|arg| match arg {
                                     RESPOutput::BulkString(s) => Some(s.clone()),
+                                    RESPOutput::SimpleString(s) => Some(s.clone()),
+                                    RESPOutput::Integer(i) => Some(i.to_string()),
+                                    RESPOutput::Double(d) => Some(d.to_string()),
+                                    RESPOutput::Boolean(b) => Some(b.to_string()),
+                                    RESPOutput::Null => Some("nil".to_string()),
                                     _ => None,
                                 })
                                 .ok_or(RedisError::InvalidArguments)?;
@@ -124,17 +150,23 @@ impl Command {
                             let key = args.get(1)
                                 .and_then(|arg| match arg {
                                     RESPOutput::BulkString(s) => Some(s.clone()),
+                                    RESPOutput::SimpleString(s) => Some(s.clone()),
+                                    RESPOutput::Integer(i) => Some(i.to_string()),
+                                    RESPOutput::Double(d) => Some(d.to_string()),
+                                    RESPOutput::Boolean(b) => Some(b.to_string()),
+                                    RESPOutput::Null => Some("nil".to_string()),
                                     _ => None,
                                 })
                                 .ok_or(RedisError::InvalidArguments)?;
 
                             let value = args.get(2)
                                 .and_then(|arg| match arg {
-                                    RESPOutput::BulkString(s) => Some(DataType::String(s.clone())),
-                                    RESPOutput::Integer(i) => Some(DataType::Integer(*i)),
-                                    RESPOutput::Double(d) => Some(DataType::Double(*d)),
-                                    RESPOutput::Boolean(b) => Some(DataType::Boolean(*b)),
-                                    RESPOutput::Null => Some(DataType::Null),
+                                    RESPOutput::BulkString(s) => Some(DataType::from(s.clone())),
+                                    RESPOutput::SimpleString(s) => Some(DataType::from(s.clone())),
+                                    RESPOutput::Integer(i) => Some(DataType::from(*i)),
+                                    RESPOutput::Double(d) => Some(DataType::from(*d)),
+                                    RESPOutput::Boolean(b) => Some(DataType::from(*b)),
+                                    RESPOutput::Null => Some(DataType::from("nil")),
                                     _ => None,
                                 })
                                 .ok_or(RedisError::InvalidArguments)?;
@@ -184,13 +216,7 @@ impl Command {
             Command::Get(key) => {
                 let value = store.get(key).await?;
                 Ok(match value {
-                    Some(value) => match value {
-                        DataType::String(s) => format!("${}\r\n{}\r\n", s.len(), s),
-                        DataType::Integer(i) => format!(":{}\r\n", i),
-                        DataType::Double(d) => format!(",{}\r\n", d),
-                        DataType::Boolean(b) => format!("#{}\r\n", if b { "t" } else { "f" }),
-                        DataType::Null => "$-1\r\n".to_string(),
-                    },
+                    Some(value) => format!("${}\r\n{}\r\n", value.to_string().len(), value.to_string()),
                     None => "$-1\r\n".to_string(),
                 })
             }
@@ -199,13 +225,7 @@ impl Command {
                     "GET" => {
                         let value = store.get(key).await?;
                         Ok(match value {
-                            Some(value) => match value {
-                                DataType::String(s) => format!("${}\r\n{}\r\n", s.len(), s),
-                                DataType::Integer(i) => format!(":{}\r\n", i),
-                                DataType::Double(d) => format!(",{}\r\n", d),
-                                DataType::Boolean(b) => format!("#{}\r\n", if b { "t" } else { "f" }),
-                                DataType::Null => "$-1\r\n".to_string(),
-                            },
+                            Some(value) => format!("${}\r\n{}\r\n", value.to_string().len(), value.to_string()),
                             None => "$-1\r\n".to_string(),
                         })
                     }
