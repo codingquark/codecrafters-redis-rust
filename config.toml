@@ -1,5 +1,5 @@
 dir = "data"
-dbfilename = "redis.db"
+dbfilename = "dump.rdb"
 
 [server]
 address = "127.0.0.1"

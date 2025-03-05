@@ -1,5 +1,9 @@
 use std::fmt;
 use std::time::Duration;
+
+pub mod rdb;
+pub use rdb::{RDBParser, RDBError, RDBValue, RDBEntry};
+
 #[derive(Debug)]
 pub enum RESPOutput {
     Array(Vec<RESPOutput>),
@@ -181,14 +185,14 @@ impl Parser {
         Ok((RESPOutput::Boolean(String::from(String::from_utf8_lossy(result)).parse().unwrap()), rem))
     }
 
-    fn parse_null(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
-        let parsed = Parser::parse_until_crlf(payload);
-        if parsed.is_err() {
-            return Err(ParserError::CRLFNotFound);
-        }
-        let (_, rem) = parsed.unwrap();
-        Ok((RESPOutput::Null, rem))
-    }
+    // fn parse_null(payload: &[u8]) -> Result<(RESPOutput, &[u8]), ParserError> {
+    //     let parsed = Parser::parse_until_crlf(payload);
+    //     if parsed.is_err() {
+    //         return Err(ParserError::CRLFNotFound);
+    //     }
+    //     let (_, rem) = parsed.unwrap();
+    //     Ok((RESPOutput::Null, rem))
+    // }
 
     fn parse_until_crlf(input: &[u8]) -> ParserCRLFResult {
         for index in 0..input.len() - 1 {

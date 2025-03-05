@@ -17,7 +17,7 @@ pub struct AppConfig {
 pub fn load_config() -> Result<AppConfig, config::ConfigError> {
     let config: AppConfig = Config::builder()
         .set_default("dir", "data")?
-        .set_default("dbfilename", "redis.db")?
+        .set_default("dbfilename", "dump.db")?
         .add_source(File::with_name("config.toml"))
         .build()?
         .try_deserialize()?;
